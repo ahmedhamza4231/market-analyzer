@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>محلل أسواق مصر والخليج</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#F4F2EC;--card:#fff;--tx:#1a1d21;--mut:#5d6672;--bd:#d9dde3;--ac:#0B5D44;--ac-tx:#fff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171a;--card:#1d2125;--tx:#eceff2;--mut:#a3acb7;--bd:#323840;--ac:#2fb585;--ac-tx:#06231a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171a;--card:#1d2125;--tx:#eceff2;--mut:#a3acb7;--bd:#323840;--ac:#2fb585;--ac-tx:#06231a;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;line-height:1.7}
+main{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:8px 0 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+label{display:block;font-size:.85rem;color:var(--mut);margin-bottom:4px}
+select,input{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.modes{display:flex;gap:8px;margin:12px 0}
+.modes button{flex:1;padding:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:8px;font:inherit;cursor:pointer}
+.modes button.on{background:var(--ac);color:var(--ac-tx);border-color:var(--ac)}
+#go{width:100%;padding:12px;border:0;border-radius:8px;background:var(--ac);color:var(--ac-tx);font:inherit;font-weight:700;cursor:pointer;margin-top:12px}
+#go:disabled{opacity:.6}
+.warn{font-size:.85rem;color:var(--mut)}
+#out{overflow-x:auto}
+#out table{border-collapse:collapse;width:100%;font-size:.9rem}
+#out th,#out td{border:1px solid var(--bd);padding:6px;text-align:right}
+#save{display:none;margin-top:10px;padding:8px 12px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:8px;font:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>محلل أسواق مصر والخليج</h1>
+<div class="card">
+  <div class="row">
+    <div><label>الدولة</label><select id="country"></select></div>
+    <div><label>القسم</label><select id="cat"></select></div>
+    <div><label>القسم الفرعي</label><select id="sub"></select></div>
+  </div>
+  <div class="modes">
+    <button id="m1" class="on">الفجوات والفرص</button>
+    <button id="m2">تحليل منتج محدد</button>
+  </div>
+  <div id="pbox" style="display:none"><label>اسم المنتج</label><input id="product" placeholder="مثال: مقلاة هوائية 6 لتر"></div>
+  <div style="margin-top:10px"><label>ميزانيتك (اختياري)</label><input id="budget"></div>
+  <button id="go">حلّل</button>
+  <p class="warn">التحليل بيبحث في الإنترنت وممكن ياخد من 30 ثانية لدقيقتين. الأرقام تقديرات، أكّد الأسعار والجمارك قبل الشراء.</p>
+</div>
+<div class="card" id="outcard" style="display:none"><div id="out"></div><button id="save">حفظ التحليل كملف</button></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script>
+const COUNTRIES={"مصر":"Egypt (EGP)","السعودية":"Saudi Arabia (SAR)","الإمارات":"UAE (AED)","الكويت":"Kuwait (KWD)","قطر":"Qatar (QAR)","البحرين":"Bahrain (BHD)","عُمان":"Oman (OMR)"};
+const CATS={"أجهزة منزلية":["مطبخ صغيرة","أجهزة كبيرة","تنظيف","تكييف وتبريد","سخانات ومياه"],"إلكترونيات":["موبايلات وإكسسوارات","لابتوب وكمبيوتر","صوتيات","شاشات وتلفزيونات","كاميرات ومراقبة"],"صحة وعناية":["أجهزة طبية منزلية","عناية شخصية","مكملات غذائية","أجهزة رياضة"],"منزل وأثاث":["أثاث","ديكور","إضاءة","أدوات مطبخ","مفروشات"],"موضة":["ملابس رجالي","ملابس حريمي","أحذية","شنط وإكسسوارات","ساعات"],"أطفال":["ألعاب","مستلزمات رضع","ملابس أطفال","عربيات ومقاعد"],"سيارات":["إكسسوارات","قطع غيار","إطارات وزيوت","أجهزة داخل السيارة"],"أدوات وصيانة":["عدد يدوية","عدد كهربائية","سباكة وكهرباء","أمن وسلامة"],"طاقة شمسية وكهرباء":["ألواح وبطاريات","UPS ومولدات","إضاءة LED","شواحن"],"جمال وتجميل":["عناية بالبشرة","عطور","مكياج","عناية بالشعر"],"بقالة وأغذية":["مواد غذائية","قهوة وشاي","مكملات رياضية","منتجات عضوية"],"رياضة وسفر":["معدات رياضية","تخييم","شنط سفر","دراجات وسكوترات"],"مكتب ودراسة":["قرطاسية","طابعات وأحبار","أثاث مكتبي"],"حيوانات أليفة":["أغذية","إكسسوارات"],"صناعي وB2B":["معدات مطاعم وكافيهات","معدات مصانع","تغليف"]};
+const $=id=>document.getElementById(id);
+const fill=(el,arr)=>{el.textContent="";arr.forEach(v=>{const o=document.createElement("option");o.value=o.textContent=v;el.appendChild(o)})};
+fill($("country"),Object.keys(COUNTRIES));fill($("cat"),Object.keys(CATS));fill($("sub"),CATS[$("cat").value]);
+$("cat").onchange=()=>fill($("sub"),CATS[$("cat").value]);
+let mode=1;
+function setMode(m){mode=m;$("m1").classList.toggle("on",m==1);$("m2").classList.toggle("on",m==2);$("pbox").style.display=m==2?"block":"none"}
+$("m1").onclick=()=>setMode(1);$("m2").onclick=()=>setMode(2);
+
+const SYS=`أنت محلل أسواق تجارة إلكترونية خبير في مصر والخليج. اكتب بالعربي المصري المبسّط وبشكل مباشر. ممنوع تخترع أرقام: لو مش متأكد اكتب "تقدير" مع نطاق، أو "غير متوفر". اذكر الأسعار بالعملة المحلية والدولار. اذكر مستوى الثقة (عالي/متوسط/ضعيف) لكل قسم. اذكر إنك مش بتبحث لحظياً وإن الأسعار لازم تتأكد. الجمارك والضرائب: تقدير يلزم التأكد منه.`;
+const GAPS=(c,k,s,x)=>`حلّل سوق ${c} لفئة «${k} / ${s}». ${x}\nالناتج بالترتيب:\n1. الطلب والاتجاهات والمواسم\n2. أفضل 10 منتجات مبيعاً (جدول: المنتج | سعر البيع التقريبي | أشهر أماكن البيع)\n3. الفجوات: منتجات مطلوبة وناقصة أو غير متوفرة كفاية، وليه\n4. أبرز المنافسين (اسم + نقاط قوة/ضعف + نطاق أسعارهم)\n5. مصادر الشراء المقترحة وسعر الشراء التقريبي\n6. أفضل 3 فرص مرتبة بالأسباب\n7. تحذيرات (جمارك، ترخيص، مخاطر)`;
+const PROD=(c,k,s,p,x)=>`حلّل المنتج «${p}» (فئة ${k} / ${s}) في سوق ${c}. ${x}\nالناتج بالترتيب:\n1. الطلب الحالي ومدى الإشباع\n2. المنافسون (اسم | سعر البيع | ملاحظات)\n3. سعر الشراء من المصدر + أفضل مصدر/منصة\n4. التكلفة الكاملة للوحدة (شراء + شحن + جمارك + ضريبة + مصاريف) وسعر بيع مقترح وهامش الربح %\n5. خطة شراء: الكمية الأولى (تجربة صغيرة) وخطة التوسع\n6. خطة بيع وتسويق\n7. المخاطر والتراخيص والمرتجعات\n8. القرار: يستاهل / لا يستاهل + السبب`;
+
+let last="";
+$("go").onclick=async()=>{
+  const p=$("product").value.trim();
+  if(mode==2&&!p){alert("اكتب اسم المنتج");return}
+  const c=$("country").value+" ("+COUNTRIES[$("country").value]+")",k=$("cat").value,s=$("sub").value;
+  const b=$("budget").value.trim(),x=b?`الميزانية: ${b}.`:"";
+  const q=SYS+"\n\n"+(mode==2?PROD(c,k,s,p,x):GAPS(c,k,s,x));
+  $("go").disabled=true;$("go").textContent="بيحلل...";$("outcard").style.display="block";$("out").textContent="جاري التحليل...";
+  try{
+    let pw=localStorage.getItem("pw")||prompt("كلمة السر:");
+    if(!pw){$("out").textContent="لازم كلمة السر.";throw new Error("nopw")}
+    const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json","x-app-password":pw},body:JSON.stringify({prompt:q})});
+    const j=await res.json();
+    if(res.status==401){localStorage.removeItem("pw");throw new Error("كلمة السر غلط")}
+    if(!res.ok)throw new Error(j.error||"خطأ في السيرفر");
+    localStorage.setItem("pw",pw);
+    last=j.text;render(last);$("save").style.display="inline-block";
+  }catch(e){if(e.message!=="nopw")$("out").textContent="حصل خطأ: "+(e&&e.message||"غير معروف")}
+  $("go").disabled=false;$("go").textContent="حلّل";
+};
+function render(t){try{$("out").innerHTML=window.marked?marked.parse(t):""; if(!window.marked)$("out").textContent=t}catch(e){$("out").textContent=t}}
+$("save").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([last],{type:"text/markdown"}));a.download="analysis.md";a.click()};
+</script>
+</body>
+</html>
